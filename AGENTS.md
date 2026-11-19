@@ -17,4 +17,6 @@ If `vendor/resume-tailoring-skill/` is empty, run `git submodule update --init`.
   - `npm run truth -- <resume.json> resumes/master_resume.md resumes/experience_bank.md`
   - `npm run ats -- <resume.json> <output basename>`
 
+If the truth check flags a skill or metric the user might genuinely have, ask them. Record it only after they confirm in chat, using `npm run add -- --skill="X" --where="<employer>" --detail="<what they did>"`, then re-run the check. Never answer `--interactive` prompts yourself, and never treat `--warn` as passing. The section "When the truth check fails" in `CLAUDE.md` has the full rules.
+
 If you can't browse the web, ask the user to paste the job description.

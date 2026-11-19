@@ -36,7 +36,7 @@ flowchart LR
 | **Truth check** | A number, employer, job title, date or named tool that isn't in the library, or anything from the library's "Rejected" list | `tools/truth_check.js` |
 | **ATS parse check** | Content an applicant tracking system can't read back out of the DOCX or PDF (bad layout, lost bullets, broken headings), plus optional JD keyword coverage | `tools/ats_check.py`, using [MarkItDown](https://github.com/microsoft/markitdown) as the text extractor |
 
-The test suite includes **negative tests**: it tampers with the example (an invented 95% metric, an unlisted tool, a rejected item, a changed employer, a missing bullet) and asserts that each guard fails.
+The test suite includes **negative tests**. It tampers with the example (an invented 95% metric, an unlisted tool, a rejected item, a changed employer, a missing bullet) and asserts that each guard fails. It also checks that confirming a skill makes the check pass, and that a Rejected item can't be added back by any route.
 
 ```
 Truth check
@@ -49,6 +49,53 @@ ATS parse check (MarkItDown)
   ok    every item is readable from the DOCX and the PDF
   ok    fails when content is missing from the files
 ```
+
+## When the truth check fails: add what you've really done
+
+The truth check is strict on purpose, but it isn't a dead end. A failure usually means one of two things:
+- the AI invented something, so fix the resume; or
+- the job needs a skill you **do** have that isn't in your library yet, so add it.
+
+You choose how strict to be:
+
+| Mode | Command | What happens |
+|---|---|---|
+| **Strict** (default) | `npm run truth -- <resume.json> resumes/master_resume.md resumes/experience_bank.md` | Fails on anything unsupported, and tells you how to add it if it's true |
+| **Interactive** | same, plus `--interactive --jd="Company Role"` | Asks about each item: true or not? If yes, where and what you did. Saves the answers to your experience bank and re-checks |
+| **Add directly** | `npm run add -- --skill="Kubernetes" --where="Acme Ltd" --detail="Deployed test environments"` | Records one skill, tool or certification. Use `--metric="35%"` for a number. With no flags, it asks the questions |
+| **Draft** | add `--warn` | Lists the problems but doesn't fail. For early drafts only; fix them before you send the resume |
+| **Wording** | add `--allow=Deterministic` | Ignores capitalised words that are ordinary wording, not tool names |
+
+**Example: the JD asks for Kubernetes, and you've used it but never wrote it down.**
+
+```text
+$ npm run truth -- applications/Acme/resume.json resumes/master_resume.md resumes/experience_bank.md --interactive --jd="Acme Senior QA"
+TRUTH CHECK: 1 unsupported claim(s)
+  - skill/tool not in library: Kubernetes
+
+For each item, answer y only if it's TRUE for you. Anything you confirm is saved to the experience bank.
+
+  Is "Kubernetes" true for you?
+    [y/N] y
+    Where? (employer name, or 'personal project'): Acme Ltd
+    What did you do? (one line, optional): Set up test environments with a pod per microservice
+
+Saved 1 confirmed item(s) to resumes/experience_bank.md
+TRUTH CHECK PASS: every number, employer, title, date and named skill traces to the library
+```
+
+The entry is saved, dated and tagged with the job, so every future resume can use it:
+
+```markdown
+## 2026-11-19 — added by user (JD: Acme Senior QA)
+- **Kubernetes (Acme Ltd):** Set up test environments with a pod per microservice
+```
+
+**Guard rails that stay on in every mode:**
+- **Answer "yes" only for things you actually did.** The truth check trusts your experience bank.
+- **Employers, job titles and dates must match your master resume exactly.** They can't be added interactively; edit `master_resume.md` if one is wrong there.
+- **Rejected items stay rejected.** `npm run add` refuses them, `--interactive` won't offer them, and an entry written by hand in the experience bank won't override them. If something on the Rejected list turns out to be true, remove it from `master_resume.md` deliberately.
+- **A skill with no employer** ("personal project" or blank) belongs in the skills or summary lines, not under a job. `CLAUDE.md` tells the AI to follow that rule.
 
 ## Quick start
 
@@ -153,7 +200,7 @@ If a tool doesn't pick up `AGENTS.md` by itself, attach `AGENTS.md` and `CLAUDE.
    ```bash
    npm run truth -- <folder>/resume.json resumes/master_resume.md resumes/experience_bank.md && npm run ats -- <folder>/resume.json <folder>/<Name>_Resume
    ```
-6. If a check fails, paste its output back into Aider and ask it to fix `resume.json`. Local models make more mistakes than large hosted ones, so expect to iterate.
+6. If a check fails, paste its output back into Aider and ask it to fix `resume.json`. Local models make more mistakes than large hosted ones, so expect to iterate. If the check flags a skill you really have, add it with `--interactive` or `npm run add` (see [When the truth check fails](#when-the-truth-check-fails-add-what-youve-really-done)).
 
 You can also use Aider with a hosted model and your own API key instead of Ollama.
 
@@ -184,7 +231,8 @@ This works the same way with ChatGPT, Gemini or any other chat assistant.
 |---|---|
 | `npm run build -- <resume.json> <base>` | Writes `<base>.md`, `<base>.docx` and a temporary `<base>.html` |
 | `npm run pdf -- <base>` | Prints `<base>.html` to an A4 `<base>.pdf` and deletes the `.html` |
-| `npm run truth -- <resume.json> <library.md...> [--allow=Word]` | Truth check against the library |
+| `npm run truth -- <resume.json> <library.md...> [--interactive] [--warn] [--allow=Word]` | Truth check against the library (see [modes](#when-the-truth-check-fails-add-what-youve-really-done)) |
+| `npm run add -- --skill=X --where=Employer --detail="..."` | Records a skill, tool, certification or `--metric` in your experience bank |
 | `npm run ats -- <resume.json> <base> [--keywords JD.md]` | ATS parse check on the DOCX and PDF |
 | `npm run import -- <files or URLs> -o <dir>` | Converts PDF, DOCX, PPTX, XLSX, HTML or a URL to Markdown |
 | `npm test` | Full suite, including negative tests |

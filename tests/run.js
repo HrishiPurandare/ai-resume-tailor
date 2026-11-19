@@ -101,6 +101,80 @@ test("--allow whitelists plain wording", () => {
   expectExit(truth(json, "--allow=Deterministic"), 0, "with --allow");
 });
 
+console.log("Relaxed modes and adding experience");
+const withKubernetes = () => tampered((r) => (r.skills[0][1] += ", Kubernetes"));
+const freshLibrary = () => {
+  const dir = fs.mkdtempSync(path.join(TMP, "lib-"));
+  fs.copyFileSync(path.join(EX, "master_resume.md"), path.join(dir, "master_resume.md"));
+  return { master: path.join(dir, "master_resume.md"), bank: path.join(dir, "experience_bank.md") };
+};
+test("--warn lists problems but exits 0", () => {
+  const res = truth(withKubernetes(), "--warn");
+  expectExit(res, 0, "warn");
+  assert(/TRUTH CHECK WARN/.test(res.stdout) && /Kubernetes/.test(res.stdout), "should still list the problem");
+});
+test("strict failure suggests how to record a true item", () => {
+  assert(/--interactive/.test(truth(withKubernetes()).stdout), "should point to --interactive / npm run add");
+});
+test("add_experience records a skill that then passes the check", () => {
+  const lib = freshLibrary();
+  const json = withKubernetes();
+  const check = () => run("node", ["tools/truth_check.js", json, lib.master, lib.bank]);
+  expectExit(check(), 1, "before adding");
+  expectExit(
+    run("node", ["tools/add_experience.js", "--skill=Kubernetes", "--where=Example Payments Ltd", "--detail=Deployed test environments", `--bank=${lib.bank}`]),
+    0,
+    "add"
+  );
+  expectExit(check(), 0, "after adding");
+  assert(/Kubernetes \(Example Payments Ltd\)/.test(fs.readFileSync(lib.bank, "utf8")), "entry should name the employer");
+});
+test("--interactive saves only the items answered yes", () => {
+  const lib = freshLibrary();
+  const json = tampered((r) => {
+    r.skills[0][1] += ", Kubernetes";
+    r.experience[0].bullets[1] = "Cut CI regression time by 95% across pipelines.";
+  });
+  const res = spawnSync("node", ["tools/truth_check.js", json, lib.master, `--bank=${lib.bank}`, "--interactive"], {
+    cwd: ROOT,
+    encoding: "utf8",
+    input: "n\ny\nExample Payments Ltd\nDeployed test environments\n", // no to 95, yes to Kubernetes
+  });
+  expectExit(res, 1, "still fails on the declined number");
+  const bank = fs.readFileSync(lib.bank, "utf8");
+  assert(/Kubernetes \(Example Payments Ltd\)/.test(bank), "confirmed skill should be saved");
+  assert(!/95/.test(bank), "declined number must not be saved");
+});
+test("--interactive can't whitelist a Rejected item or a changed employer", () => {
+  const lib = freshLibrary();
+  const json = tampered((r) => {
+    r.skills[0][1] += ", Cypress";
+    r.experience[0].company = "Example Payments Group";
+  });
+  const res = spawnSync("node", ["tools/truth_check.js", json, lib.master, `--bank=${lib.bank}`, "--interactive"], {
+    cwd: ROOT,
+    encoding: "utf8",
+    input: "y\ny\n",
+  });
+  expectExit(res, 1, "interactive");
+  assert(/REJECTED item: Cypress/.test(res.stdout) && /company not in library/.test(res.stdout), "both must still fail");
+  assert(!fs.existsSync(lib.bank), "nothing should be written");
+});
+
+test("add_experience refuses an item from the Rejected list", () => {
+  const lib = freshLibrary();
+  const res = run("node", ["tools/add_experience.js", "--skill=Cypress", "--where=Example Payments Ltd", `--bank=${lib.bank}`, `--master=${lib.master}`]);
+  expectExit(res, 1, "add rejected");
+  assert(!fs.existsSync(lib.bank), "nothing should be written");
+});
+test("a bank entry can't un-reject a Rejected item", () => {
+  const lib = freshLibrary();
+  fs.writeFileSync(lib.bank, "# Experience Bank\n\n- **Cypress (Example Payments Ltd):** written by hand\n");
+  const res = truth(tampered((r) => (r.skills[0][1] += ", Cypress")), lib.bank);
+  expectExit(res, 1, "truth");
+  assert(/REJECTED item: Cypress/.test(res.stdout), "rejected item must still fail");
+});
+
 console.log("ATS parse check (MarkItDown)");
 if (!HAS_PY) {
   console.log("  skip  .venv not found; run `npm run setup:py` to enable");

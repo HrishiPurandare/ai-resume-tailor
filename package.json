@@ -9,7 +9,8 @@
     "setup:py": "python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt",
     "import": ".venv/bin/python tools/to_markdown.py",
     "ats": ".venv/bin/python tools/ats_check.py",
-    "truth": "node tools/truth_check.js"
+    "truth": "node tools/truth_check.js",
+    "add": "node tools/add_experience.js"
   },
   "license": "MIT",
   "description": "Claude Code workflow that tailors ATS-friendly resumes to a job description without fabricating",

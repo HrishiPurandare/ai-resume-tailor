@@ -38,6 +38,13 @@ Python tools need a one-time `npm run setup:py` (Python 3.10–3.14; creates `.v
 5. **Reply briefly:** folder path, coverage %, top 5 keywords, gaps and how they were handled, and the reframings applied.
 6. **Update** `application-tracker.md`, and add newly surfaced experiences to `experience_bank.md`, dated and tagged with the JD.
 
+### When the truth check fails
+
+- **Something you wrote that the user never said:** remove it from the resume. Don't ask the user to approve it after the fact.
+- **A skill or metric the JD needs and the user might have:** ask the user, naming the item. If they confirm, record it with `npm run add -- --skill="X" --where="<employer>" --detail="<what they did>" --jd="<Company Role>"` (`--metric="35%"` for numbers), or ask them to run the truth check with `--interactive`. Then re-run the check.
+- **Never** answer `--interactive` prompts yourself, never write to `experience_bank.md` without the user's confirmation in chat, and never ship a resume that only passes with `--warn`.
+- **No employer given** ("personal project" or blank): the claim may go in skills or summary only, not under a job.
+
 Say **"deep mode"** for the full skill workflow with all checkpoints.
 
 ## Non-negotiable rules
