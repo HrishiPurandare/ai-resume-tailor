@@ -61,6 +61,9 @@ def keywords_from(path: Path) -> list[str]:
 
 
 def main() -> int:
+    for stream in (sys.stdout, sys.stderr):  # Windows consoles default to cp1252; resumes contain – and •
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("resume_json", type=Path)
     ap.add_argument("base", help="output basename without extension")

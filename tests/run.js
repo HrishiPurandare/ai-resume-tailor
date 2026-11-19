@@ -10,7 +10,8 @@ const ROOT = path.resolve(__dirname, "..");
 const EX = path.join(ROOT, "examples", "jane-doe");
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "resume-tailor-"));
 const BASE = path.join(TMP, "Jane_Doe_Resume");
-const PY = path.join(ROOT, ".venv", "bin", "python");
+const { venvBin } = require("../tools/venv");
+const PY = venvBin("python"); // .venv/bin/python, or .venv\\Scripts\\python.exe on Windows
 const HAS_PY = fs.existsSync(PY);
 
 let passed = 0;
@@ -71,6 +72,27 @@ test("pdf prints, html is cleaned up, and it fits on 2 pages", () => {
   assert(!fs.existsSync(`${BASE}.html`), "temporary .html was not deleted");
   const pages = pdfPages(`${BASE}.pdf`);
   assert(pages >= 1 && pages <= 2, `expected 1-2 pages, got ${pages}`);
+});
+
+console.log("Cross-platform setup");
+test("skill files are real files (not symlinks) and match the vendor copy", () => {
+  const dir = path.join(ROOT, ".claude", "skills", "resume-tailoring");
+  for (const f of ["SKILL.md", "branching-questions.md", "matching-strategies.md", "multi-job-workflow.md", "research-prompts.md", "LICENSE"]) {
+    const p = path.join(dir, f);
+    assert(fs.existsSync(p) && !fs.lstatSync(p).isSymbolicLink(), `${f} must be a real file`);
+    assert(fs.statSync(p).size > 100, `${f} looks empty (a symlink checked out as text?)`);
+  }
+  expectExit(run("node", ["tools/sync_skill.js", "--check"]), 0, "skill copies out of date: run npm run sync-skill");
+});
+test(".mcp.json launches the server with node (no bash needed)", () => {
+  const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, ".mcp.json"), "utf8")).mcpServers.markitdown;
+  assert(cfg.command === "node" && fs.existsSync(path.join(ROOT, cfg.args[0])), JSON.stringify(cfg));
+});
+test("npm scripts call no OS-specific paths", () => {
+  const scripts = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).scripts;
+  for (const [name, cmd] of Object.entries(scripts)) {
+    assert(!/\.venv\/bin|python3\.\d+|\bbash\b|\.sh\b/.test(cmd), `${name} is not cross-platform: ${cmd}`);
+  }
 });
 
 console.log("Truth check");
@@ -262,7 +284,7 @@ if (!HAS_PY) {
   });
 
   console.log("MCP server (markitdown-mcp)");
-  if (!fs.existsSync(path.join(ROOT, ".venv", "bin", "markitdown-mcp"))) {
+  if (!fs.existsSync(venvBin("markitdown-mcp"))) {
     console.log("  skip  not installed; run `npm run setup:py:extras` to enable");
   } else {
     test("starts from .mcp.json, offers convert_to_markdown, converts a file", () => {

@@ -162,6 +162,9 @@ def convert_one(md: MarkItDown, src: str, args):
 
 
 def main() -> int:
+    for stream in (sys.stdout, sys.stderr):  # Windows consoles default to cp1252; resumes contain – and •
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("inputs", nargs="*", help="files, folders, http(s) URLs, or - for stdin")
     ap.add_argument("-o", "--output-dir", type=Path)

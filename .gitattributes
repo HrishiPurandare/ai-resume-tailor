@@ -1,0 +1,7 @@
+# Same line endings on macOS, Linux and Windows, so text checks and tests behave identically.
+* text=auto eol=lf
+*.docx binary
+*.pdf binary
+*.png binary
+*.xlsx binary
+*.pptx binary

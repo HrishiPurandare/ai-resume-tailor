@@ -5,9 +5,9 @@ This repository tailors a resume to a job description. It works with any coding 
 **Before doing anything, read these files and follow them exactly:**
 
 1. `CLAUDE.md`: the workflow, the folder layout and the non-negotiable rules. It was written for Claude Code, but every step applies to you.
-2. `vendor/resume-tailoring-skill/skills/resume-tailoring/SKILL.md`: the detailed tailoring method. Its supporting files are in `vendor/resume-tailoring-skill/` (`research-prompts.md`, `matching-strategies.md`, `branching-questions.md`, `multi-job-workflow.md`).
+2. `.claude/skills/resume-tailoring/SKILL.md`: the detailed tailoring method. Its supporting files are in the same folder (`research-prompts.md`, `matching-strategies.md`, `branching-questions.md`, `multi-job-workflow.md`).
 
-If `vendor/resume-tailoring-skill/` is empty, run `git submodule update --init`.
+Commands are the same on macOS, Linux and Windows: always use the `npm run ...` scripts (for example `npm run import`, `npm run ats`), never `.venv/bin/python` directly.
 
 ## The rules that matter most
 

@@ -99,32 +99,78 @@ The entry is saved, dated and tagged with the job, so every future resume can us
 
 ## Quick start
 
-Requirements: Node.js 20+, Python 3.10–3.14, and [Claude Code](https://docs.anthropic.com/claude-code).
+Works on **macOS, Windows and Linux**. CI runs the full test suite on all three on every push.
+
+You need:
+- **Node.js 20+**
+- **Git**
+- **Python 3.10–3.14** (only for the import and ATS tools)
+- [Claude Code](https://docs.anthropic.com/claude-code), or one of the [free alternatives](#plans-and-free-options)
+
+### macOS
+
+1. Install the prerequisites with [Homebrew](https://brew.sh). macOS ships Python 3.9, which is too old.
+   ```bash
+   brew install node git python@3.12
+   ```
+2. Clone and set up:
+   ```bash
+   git clone --recurse-submodules https://github.com/HrishiPurandare/ai-resume-tailor.git
+   cd ai-resume-tailor
+   npm install                # docx + Puppeteer (downloads a headless Chrome)
+   npm run setup:py           # creates .venv with MarkItDown (all local formats)
+   npm run setup:py:extras    # optional: + OCR, MCP server, YouTube, audio, Azure
+   npm test                   # builds the example and runs every check
+   ```
+3. Create your private library (git-ignored):
+   ```bash
+   mkdir -p resumes applications
+   cp examples/jane-doe/master_resume.md resumes/master_resume.md   # replace with your own facts
+   touch resumes/experience_bank.md application-tracker.md
+   ```
+
+### Windows
+
+Use **PowerShell** (or Windows Terminal). Git Bash and WSL aren't needed.
+
+1. Install the prerequisites with `winget` (built into Windows 10 and 11), then **close and reopen PowerShell** so the new commands are found:
+   ```powershell
+   winget install OpenJS.NodeJS.LTS Git.Git Python.Python.3.12
+   ```
+   If you install Python from [python.org](https://www.python.org/downloads/) instead, tick **"Add python.exe to PATH"**. `npm run setup:py` finds Python through the `py` launcher, `python` or `python3`.
+2. Clone and set up (the same npm commands as on macOS):
+   ```powershell
+   git clone --recurse-submodules https://github.com/HrishiPurandare/ai-resume-tailor.git
+   cd ai-resume-tailor
+   npm install
+   npm run setup:py
+   npm run setup:py:extras    # optional
+   npm test
+   ```
+3. Create your private library:
+   ```powershell
+   New-Item -ItemType Directory -Force resumes, applications | Out-Null
+   Copy-Item examples\jane-doe\master_resume.md resumes\master_resume.md   # replace with your own facts
+   New-Item -ItemType File -Force resumes\experience_bank.md, application-tracker.md | Out-Null
+   ```
+
+**Windows notes:**
+- **If `npm` is blocked** ("running scripts is disabled on this system"), allow local scripts for your user once:
+  ```powershell
+  Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+  ```
+- **Paths:** both `examples/jane-doe` and `examples\jane-doe` work in npm commands. Quote paths that contain spaces.
+- **No symlinks or Developer Mode needed.** The skill is stored as real files in `.claude/skills/`.
+
+### Both systems
+
+Already have resumes as PDF, Word or PowerPoint? Convert the whole folder first, then build `master_resume.md` from the text:
 
 ```bash
-git clone --recurse-submodules https://github.com/HrishiPurandare/ai-resume-tailor.git
-cd ai-resume-tailor
-npm install            # docx + Puppeteer (downloads a headless Chrome)
-npm run setup:py       # creates .venv with MarkItDown (all local formats)
-npm run setup:py:extras   # optional: + OCR, MCP server, YouTube, audio, Azure (see "Import anything")
-npm test               # builds the example and runs every check
+npm run import -- old-resumes --recursive -o resumes/imported
 ```
 
-Then create your private library (git-ignored):
-
-```bash
-mkdir -p resumes applications
-cp examples/jane-doe/master_resume.md resumes/master_resume.md   # replace with your own facts
-touch resumes/experience_bank.md application-tracker.md
-```
-
-Already have resumes as PDF or Word? Convert them first, then build `master_resume.md` from the text:
-
-```bash
-npm run import -- old-resumes/*.pdf old-resumes/*.docx -o resumes/imported
-```
-
-Open the folder in Claude Code and paste a job description or URL. `CLAUDE.md` tells Claude the workflow and the rules.
+Open the folder in Claude Code (`claude` in the terminal, or the desktop app) and paste a job description or URL. `CLAUDE.md` tells Claude the workflow and the rules.
 
 ## Import anything (MarkItDown)
 
@@ -158,13 +204,32 @@ npm run import -- jd.pdf skills-matrix.xlsx team-overview.pptx -o applications/A
 ollama pull llava
 npm run import -- scanned_resume.pdf --ocr --llm-base-url http://localhost:11434/v1 --llm-model llava
 
-# The same with OpenAI (sends the pages to OpenAI, so it needs --allow-cloud)
+# Print to the terminal instead of writing a file
+npm run import -- jd.docx --stdout
+```
+
+These commands are the same on macOS and Windows. Only setting an API key and piping a file differ:
+
+**macOS:**
+```bash
+# OCR with OpenAI (sends the pages to OpenAI, so it needs --allow-cloud)
 OPENAI_API_KEY=sk-... npm run import -- scanned_resume.pdf --ocr --allow-cloud
 
-# Print to the terminal, or pipe a file in
-npm run import -- jd.docx --stdout
+# Pipe a file in
 cat jd.pdf | npm run import -- - --stdin-ext .pdf --stdout
 ```
+
+**Windows (PowerShell):**
+```powershell
+# OCR with OpenAI (sends the pages to OpenAI, so it needs --allow-cloud)
+$env:OPENAI_API_KEY = "sk-..."
+npm run import -- scanned_resume.pdf --ocr --allow-cloud
+
+# PowerShell pipes can change binary files, so pass the file path instead of piping
+npm run import -- jd.pdf --stdout
+```
+
+**Installing Ollama** for local OCR: on macOS run `brew install ollama` (or use the app from [ollama.com](https://ollama.com)); on Windows run `winget install Ollama.Ollama`. Then `ollama pull llava` works the same on both.
 
 Other options: `--force` to overwrite, `--llm-prompt` for a custom OCR prompt, `--plugins` for third-party MarkItDown plugins, `--keep-data-uris` to keep embedded images, and `--docintel-endpoint` / `--cu-endpoint` for Azure. `npm run import -- --help` lists them all.
 
@@ -174,7 +239,7 @@ Converted files are reference material. Confirm the facts before they go into `m
 
 With the extras installed, the repo's `.mcp.json` registers MarkItDown's MCP server. Claude Code asks you to approve it the first time you open the folder, and after that the agent can call `convert_to_markdown` on any file, web page or `data:` URI by itself. For example: "read the JD in ~/Downloads/jd.pdf".
 
-Other MCP-capable tools (Cursor, Cline, Gemini CLI, Claude Desktop) can use the same server: point them at `bash tools/markitdown_mcp.sh`. The server runs locally over stdio and can read whatever files your user account can, so only use it with agents you trust.
+Other MCP-capable tools (Cursor, Cline, Gemini CLI, Claude Desktop) can use the same server: command `node`, argument `tools/markitdown_mcp.js` (or `npm run mcp`), on macOS and Windows alike. The server runs locally over stdio and can read whatever files your user account can, so only use it with agents you trust.
 
 ## Plans and free options
 
@@ -205,9 +270,10 @@ Do the [Quick start](#quick-start) steps first (clone, `npm install`, `npm run s
    ```bash
    npm install -g @google/gemini-cli
    ```
-2. Start it from the repo folder, and sign in with your Google account when asked:
+2. Start it from the repo folder, and sign in with your Google account when asked. This is the same on macOS and Windows:
    ```bash
-   cd ai-resume-tailor && gemini
+   cd ai-resume-tailor
+   gemini
    ```
    It reads `GEMINI.md` automatically, which points it to `AGENTS.md` and `CLAUDE.md`.
 3. Paste a job description or URL, for example:
@@ -231,25 +297,42 @@ If a tool doesn't pick up `AGENTS.md` by itself, attach `AGENTS.md` and `CLAUDE.
 
 [Aider](https://aider.chat) is an open-source terminal coding assistant. With [Ollama](https://ollama.com) the model runs on your own computer, so nothing leaves it.
 
-1. Install Ollama from [ollama.com](https://ollama.com), then download a coding model:
+1. Install Ollama, then download a coding model.
+
+   **macOS:**
    ```bash
+   brew install ollama        # or download the app from ollama.com
    ollama pull qwen2.5-coder
    ```
-2. Install Aider:
-   ```bash
-   python3 -m pip install aider-install && aider-install
+   **Windows (PowerShell):**
+   ```powershell
+   winget install Ollama.Ollama
+   ollama pull qwen2.5-coder
    ```
-3. Start Aider in the repo, loading the instructions and your library as read-only context:
+2. Install Aider.
+
+   **macOS:**
    ```bash
-   aider --model ollama_chat/qwen2.5-coder --read AGENTS.md --read CLAUDE.md --read vendor/resume-tailoring-skill/skills/resume-tailoring/SKILL.md --read resumes/master_resume.md --read resumes/experience_bank.md
+   python3 -m pip install aider-install
+   aider-install
+   ```
+   **Windows (PowerShell):**
+   ```powershell
+   py -m pip install aider-install
+   aider-install
+   ```
+   Open a new terminal afterwards, so the `aider` command is found.
+3. Start Aider in the repo, loading the instructions and your library as read-only context. This is the same on both systems:
+   ```bash
+   aider --model ollama_chat/qwen2.5-coder --read AGENTS.md --read CLAUDE.md --read .claude/skills/resume-tailoring/SKILL.md --read resumes/master_resume.md --read resumes/experience_bank.md
    ```
 4. Paste the job description, and ask it to write `applications/<Company>_<Role>_<date>/resume.json`.
-5. Build and check it yourself (see [Commands](#commands)):
+5. Build and check it yourself (see [Commands](#commands)). These four commands are the same on macOS and Windows; run them one at a time:
    ```bash
-   npm run build -- <folder>/resume.json <folder>/<Name>_Resume && npm run pdf -- <folder>/<Name>_Resume
-   ```
-   ```bash
-   npm run truth -- <folder>/resume.json resumes/master_resume.md resumes/experience_bank.md && npm run ats -- <folder>/resume.json <folder>/<Name>_Resume
+   npm run build -- <folder>/resume.json <folder>/<Name>_Resume
+   npm run pdf -- <folder>/<Name>_Resume
+   npm run truth -- <folder>/resume.json resumes/master_resume.md resumes/experience_bank.md
+   npm run ats -- <folder>/resume.json <folder>/<Name>_Resume
    ```
 6. If a check fails, paste its output back into Aider and ask it to fix `resume.json`. Local models make more mistakes than large hosted ones, so expect to iterate. If the check flags a skill you really have, add it with `--interactive` or `npm run add` (see [When the truth check fails](#when-the-truth-check-fails-add-what-youve-really-done)).
 
@@ -259,7 +342,7 @@ You can also use Aider with a hosted model and your own API key instead of Ollam
 
 The free claude.ai plan supports Skills, file creation and code execution, so you can do the writing in a chat and the building on your computer.
 
-1. In a new chat, attach `AGENTS.md`, `CLAUDE.md`, `vendor/resume-tailoring-skill/skills/resume-tailoring/SKILL.md`, your `master_resume.md` and `experience_bank.md`, and `examples/jane-doe/resume.json` as a format example.
+1. In a new chat, attach `AGENTS.md`, `CLAUDE.md`, `.claude/skills/resume-tailoring/SKILL.md`, your `master_resume.md` and `experience_bank.md`, and `examples/jane-doe/resume.json` as a format example.
 2. Paste the job description and ask: `Follow AGENTS.md and write a resume.json in the same format as the example. Use only facts from my master resume and experience bank.`
 3. Answer its questions, then save the `resume.json` it gives you into `applications/<Company>_<Role>_<date>/`.
 4. Build and check it with the commands from Option 3, step 5.
@@ -269,9 +352,17 @@ This works the same way with ChatGPT, Gemini or any other chat assistant.
 
 ### Option 5: No AI at all
 
-1. Copy the example as a starting point:
+1. Copy the example as a starting point.
+
+   **macOS:**
    ```bash
-   mkdir -p applications/My_Application && cp examples/jane-doe/resume.json applications/My_Application/
+   mkdir -p applications/My_Application
+   cp examples/jane-doe/resume.json applications/My_Application/
+   ```
+   **Windows (PowerShell):**
+   ```powershell
+   New-Item -ItemType Directory -Force applications\My_Application | Out-Null
+   Copy-Item examples\jane-doe\resume.json applications\My_Application\
    ```
 2. Edit `resume.json` by hand with your own content.
 3. Build and check it with the commands from Option 3, step 5. You still get an ATS-safe DOCX and PDF, a 2-page check, a truth check against your library, and an ATS parse check.
@@ -286,7 +377,9 @@ This works the same way with ChatGPT, Gemini or any other chat assistant.
 | `npm run add -- --skill=X --where=Employer --detail="..."` | Records a skill, tool, certification or `--metric` in your experience bank |
 | `npm run ats -- <resume.json> <base> [--keywords JD.md]` | ATS parse check on the DOCX and PDF |
 | `npm run import -- <files, folders, URLs or -> [-o dir] [--recursive] [--stdout] [--ocr] ...` | Converts almost any document to Markdown (see [Import anything](#import-anything-markitdown)) |
-| `npm run setup:py` / `npm run setup:py:extras` | Python tools: local formats only / everything (OCR, MCP, YouTube, audio, Azure) |
+| `npm run setup:py` / `npm run setup:py:extras` | Python tools: local formats only / everything (OCR, MCP, YouTube, audio, Azure). Finds a suitable Python on macOS and Windows |
+| `npm run mcp` | Starts the MarkItDown MCP server (what `.mcp.json` runs) |
+| `npm run sync-skill` | Refreshes `.claude/skills/` from the `vendor/` submodule after an update |
 | `npm test` | Full suite, including negative tests |
 
 ## Repository layout
@@ -295,9 +388,9 @@ This works the same way with ChatGPT, Gemini or any other chat assistant.
 CLAUDE.md                  workflow and rules Claude follows
 AGENTS.md                  the same, for Codex, Copilot, Cursor, Aider and others
 GEMINI.md                  pointer for Gemini CLI
-.claude/skills/            resume-tailoring skill (symlinks into vendor/)
+.claude/skills/            resume-tailoring skill (real copies, so it works on Windows; `npm run sync-skill`)
 vendor/resume-tailoring-skill/   upstream skill (git submodule, MIT)
-tools/                     build, PDF, truth check, ATS check, import, add experience, MCP launcher
+tools/                     build, PDF, truth check, ATS check, import, add experience, MCP launcher, cross-platform Python setup
 .mcp.json                  registers the MarkItDown MCP server for Claude Code
 tests/                     test suite, fixture generator, MCP smoke test
 examples/jane-doe/         fictional person: library, JD, resume, report
