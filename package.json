@@ -1,0 +1,28 @@
+{
+  "name": "ai-resume-tailor",
+  "version": "1.0.0",
+  "main": "tools/build_resume.js",
+  "scripts": {
+    "test": "node tests/run.js",
+    "build": "node tools/build_resume.js",
+    "pdf": "node tools/print_pdf.js",
+    "setup:py": "python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt",
+    "import": ".venv/bin/python tools/to_markdown.py",
+    "ats": ".venv/bin/python tools/ats_check.py",
+    "truth": "node tools/truth_check.js"
+  },
+  "license": "MIT",
+  "description": "Claude Code workflow that tailors ATS-friendly resumes to a job description without fabricating",
+  "dependencies": {
+    "docx": "^9.15.0",
+    "puppeteer": "^25.18.1"
+  },
+  "author": "Hrishikesh Purandare",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HrishiPurandare/ai-resume-tailor.git"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

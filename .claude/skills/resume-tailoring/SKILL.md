@@ -1,0 +1,1 @@
+../../../vendor/resume-tailoring-skill/skills/resume-tailoring/SKILL.md

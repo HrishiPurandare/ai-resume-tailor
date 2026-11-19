@@ -1,0 +1,22 @@
+# Private data: never commit
+resumes/
+applications/
+application-tracker.md
+
+# Build output (example outputs are allowed)
+out/
+*.docx
+*.pdf
+*.html
+!examples/**/*.docx
+!examples/**/*.pdf
+
+# Tooling
+node_modules/
+.DS_Store
+~$*
+~WRL*.tmp
+
+# Python
+.venv/
+__pycache__/
