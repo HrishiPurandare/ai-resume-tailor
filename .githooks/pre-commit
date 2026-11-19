@@ -1,0 +1,3 @@
+#!/bin/sh
+# Blocks commits that would publish your personal data. Installed by: npm run hooks
+exec node tools/privacy_check.js --staged

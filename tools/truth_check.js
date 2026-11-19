@@ -37,9 +37,12 @@ function splitLibrary(text) {
   const keep = [];
   const rejected = [];
   let inRejected = false;
+  // Lines that record a confirmed "no" ("Confirmed NOT held: webhook testing ... never claim") name
+  // the skill only to rule it out, so they don't count as support either.
+  const deniesSkill = (l) => /\b(not held|never claim|not confirmed|not established)\b/i.test(l);
   for (const line of lines) {
     if (/^#{1,6}\s/.test(line)) inRejected = /rejected/i.test(line);
-    if (!inRejected) keep.push(line);
+    if (!inRejected && !deniesSkill(line)) keep.push(line);
     else if (/^\s*[-*]\s+/.test(line)) {
       const body = line.replace(/^\s*[-*]\s+/, "");
       const quoted = [...body.matchAll(/"([^"]+)"/g)].map((m) => m[1]);

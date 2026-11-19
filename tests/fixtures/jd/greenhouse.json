@@ -1,0 +1,8 @@
+{
+  "title": "Senior QA Engineer",
+  "company_name": "Example Retail Group",
+  "location": { "name": "Springfield" },
+  "updated_at": "2026-11-10T09:00:00-05:00",
+  "absolute_url": "https://job-boards.greenhouse.io/exampleco/jobs/123",
+  "content": "&lt;h2&gt;About the role&lt;/h2&gt;&lt;p&gt;Own test automation for our checkout.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Playwright with TypeScript&lt;/li&gt;&lt;li&gt;API testing&lt;/li&gt;&lt;/ul&gt;"
+}

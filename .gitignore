@@ -20,3 +20,7 @@ node_modules/
 # Python
 .venv/
 __pycache__/
+
+# Personal Claude Code instructions (never commit)
+CLAUDE.local.md
+!tests/fixtures/**

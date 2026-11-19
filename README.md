@@ -7,6 +7,20 @@ Paste a job description into [Claude Code](https://docs.anthropic.com/claude-cod
 
 It is built on one rule: **the resume may only contain what is in your own resume library.** An LLM writing a resume will happily invent a metric or a tool, so this repo tests every output for that, the same way you'd test any other system that can hallucinate.
 
+## What you get
+
+| | |
+|---|---|
+| **Job in** | `npm run fetch -- <url>` pulls the job from Greenhouse, Ashby, Lever, SmartRecruiters, Workable or any career page with structured job data. Paste LinkedIn jobs with `npm run new`. Any PDF, Word file or slide deck works via `npm run import` |
+| **Resume out** | Tailored Markdown, Word and PDF: single column, ATS-safe, at most 2 pages |
+| **Report** | Coverage table, gaps and how they were handled, every wording change, a "check before applying" list (visa, language, knockouts), salary guidance and interview prep |
+| **Guards** | A truth check against your own library, an ATS parse check, and a privacy check that blocks committing your contact details |
+| **Discovery** | When a must-have is missing, up to 3 questions that capture the employer and a number in one answer, then saved for next time |
+| **Outreach** | Recruiter replies, LinkedIn notes (under 300 characters), application emails, cover letters and screening-form answers, all from the same facts |
+| **Tracking** | `npm run track` keeps one row per job with its status, and a summary by status |
+
+Everything is in this repository: the tailoring skill (`.claude/skills/resume-tailor/`), the playbooks, the templates and the tools.
+
 ## How it works
 
 ```mermaid
@@ -115,7 +129,7 @@ You need:
    ```
 2. Clone and set up:
    ```bash
-   git clone --recurse-submodules https://github.com/HrishiPurandare/ai-resume-tailor.git
+   git clone https://github.com/HrishiPurandare/ai-resume-tailor.git
    cd ai-resume-tailor
    npm install                # docx + Puppeteer (downloads a headless Chrome)
    npm run setup:py           # creates .venv with MarkItDown (all local formats)
@@ -140,7 +154,7 @@ Use **PowerShell** (or Windows Terminal). Git Bash and WSL aren't needed.
    If you install Python from [python.org](https://www.python.org/downloads/) instead, tick **"Add python.exe to PATH"**. `npm run setup:py` finds Python through the `py` launcher, `python` or `python3`.
 2. Clone and set up (the same npm commands as on macOS):
    ```powershell
-   git clone --recurse-submodules https://github.com/HrishiPurandare/ai-resume-tailor.git
+   git clone https://github.com/HrishiPurandare/ai-resume-tailor.git
    cd ai-resume-tailor
    npm install
    npm run setup:py
@@ -170,7 +184,28 @@ Already have resumes as PDF, Word or PowerPoint? Convert the whole folder first,
 npm run import -- old-resumes --recursive -o resumes/imported
 ```
 
-Open the folder in Claude Code (`claude` in the terminal, or the desktop app) and paste a job description or URL. `CLAUDE.md` tells Claude the workflow and the rules.
+Open the folder in Claude Code (`claude` in the terminal, or the desktop app) and paste a job description or URL. `CLAUDE.md` and the `resume-tailor` skill tell Claude the workflow and the rules.
+
+Put personal instructions (career goals, extra rules, where your own projects live) in `CLAUDE.local.md`. It's git-ignored, and Claude Code loads it automatically.
+
+**Turn on the privacy hook once**, so a commit can never include your contact details:
+
+```bash
+npm run hooks
+```
+
+### From job link to application
+
+The same commands work on macOS and Windows:
+
+```bash
+npm run fetch -- "https://jobs.ashbyhq.com/exampleco/0d1e2f3a-..."   # creates applications/<Company>_<Role>_<date>/JD.md + tracker row
+npm run new -- "Example Retail Group" "Senior QA Engineer"           # same, for a pasted job (LinkedIn, recruiter email)
+npm run track                                                         # all applications, with a count per status
+npm run track -- update "Example Retail" --status="Applied (2026-11-20)"
+```
+
+In Claude Code you rarely type these yourself. Paste the link and the skill runs them. When you say "applied", "rejected" or "interview on Monday", it updates the tracker.
 
 ## Import anything (MarkItDown)
 
@@ -324,7 +359,7 @@ If a tool doesn't pick up `AGENTS.md` by itself, attach `AGENTS.md` and `CLAUDE.
    Open a new terminal afterwards, so the `aider` command is found.
 3. Start Aider in the repo, loading the instructions and your library as read-only context. This is the same on both systems:
    ```bash
-   aider --model ollama_chat/qwen2.5-coder --read AGENTS.md --read CLAUDE.md --read .claude/skills/resume-tailoring/SKILL.md --read resumes/master_resume.md --read resumes/experience_bank.md
+   aider --model ollama_chat/qwen2.5-coder --read AGENTS.md --read CLAUDE.md --read .claude/skills/resume-tailor/SKILL.md --read resumes/master_resume.md --read resumes/experience_bank.md
    ```
 4. Paste the job description, and ask it to write `applications/<Company>_<Role>_<date>/resume.json`.
 5. Build and check it yourself (see [Commands](#commands)). These four commands are the same on macOS and Windows; run them one at a time:
@@ -342,7 +377,7 @@ You can also use Aider with a hosted model and your own API key instead of Ollam
 
 The free claude.ai plan supports Skills, file creation and code execution, so you can do the writing in a chat and the building on your computer.
 
-1. In a new chat, attach `AGENTS.md`, `CLAUDE.md`, `.claude/skills/resume-tailoring/SKILL.md`, your `master_resume.md` and `experience_bank.md`, and `examples/jane-doe/resume.json` as a format example.
+1. In a new chat, attach `AGENTS.md`, `CLAUDE.md`, `.claude/skills/resume-tailor/SKILL.md` (with `matching.md`, `discovery.md` and `writing.md`), your `master_resume.md` and `experience_bank.md`, and `examples/jane-doe/resume.json` as a format example.
 2. Paste the job description and ask: `Follow AGENTS.md and write a resume.json in the same format as the example. Use only facts from my master resume and experience bank.`
 3. Answer its questions, then save the `resume.json` it gives you into `applications/<Company>_<Role>_<date>/`.
 4. Build and check it with the commands from Option 3, step 5.
@@ -371,26 +406,32 @@ This works the same way with ChatGPT, Gemini or any other chat assistant.
 
 | Command | What it does |
 |---|---|
+| `npm run fetch -- "<url>" [--stdout] [--force]` | Fetches a job and creates `applications/<Company>_<Role>_<date>/JD.md` plus a tracker row |
+| `npm run new -- "<Company>" "<Role>" [--from=jd.txt]` | Creates the folder and a `JD.md` to paste into, plus a tracker row |
+| `npm run track [-- list --status=applied]` / `-- update "<company>" --status="..."` / `-- add ...` | Application tracker |
 | `npm run build -- <resume.json> <base>` | Writes `<base>.md`, `<base>.docx` and a temporary `<base>.html` |
 | `npm run pdf -- <base>` | Prints `<base>.html` to an A4 `<base>.pdf` and deletes the `.html` |
 | `npm run truth -- <resume.json> <library.md...> [--interactive] [--warn] [--allow=Word]` | Truth check against the library (see [modes](#when-the-truth-check-fails-add-what-youve-really-done)) |
-| `npm run add -- --skill=X --where=Employer --detail="..."` | Records a skill, tool, certification or `--metric` in your experience bank |
+| `npm run add -- --skill=X --where=Employer --detail="..."` | Records a skill, tool, certification, `--metric`, or a confirmed `--not-held` in your experience bank |
 | `npm run ats -- <resume.json> <base> [--keywords JD.md]` | ATS parse check on the DOCX and PDF |
 | `npm run import -- <files, folders, URLs or -> [-o dir] [--recursive] [--stdout] [--ocr] ...` | Converts almost any document to Markdown (see [Import anything](#import-anything-markitdown)) |
 | `npm run setup:py` / `npm run setup:py:extras` | Python tools: local formats only / everything (OCR, MCP, YouTube, audio, Azure). Finds a suitable Python on macOS and Windows |
 | `npm run mcp` | Starts the MarkItDown MCP server (what `.mcp.json` runs) |
-| `npm run sync-skill` | Refreshes `.claude/skills/` from the `vendor/` submodule after an update |
+| `npm run privacy` / `npm run hooks` | Checks that no tracked file has your contact details / installs that check as a pre-commit hook |
 | `npm test` | Full suite, including negative tests |
 
 ## Repository layout
 
 ```
-CLAUDE.md                  workflow and rules Claude follows
+CLAUDE.md                  entry point for Claude Code: layout, commands, rules
+CLAUDE.local.md            your personal instructions (git-ignored)
 AGENTS.md                  the same, for Codex, Copilot, Cursor, Aider and others
 GEMINI.md                  pointer for Gemini CLI
-.claude/skills/            resume-tailoring skill (real copies, so it works on Windows; `npm run sync-skill`)
-vendor/resume-tailoring-skill/   upstream skill (git submodule, MIT)
-tools/                     build, PDF, truth check, ATS check, import, add experience, MCP launcher, cross-platform Python setup
+.claude/skills/resume-tailor/   the tailoring skill: workflow, matching, discovery questions, writing rules
+playbooks/                 fetching JDs, visa and work rights, salary research
+templates/                 Report.md, outreach messages, cover letter, screening answers
+.githooks/pre-commit       blocks commits containing your contact details (npm run hooks)
+tools/                     fetch, new, track, build, PDF, truth, ATS, import, add, privacy, MCP launcher, Python setup
 .mcp.json                  registers the MarkItDown MCP server for Claude Code
 tests/                     test suite, fixture generator, MCP smoke test
 examples/jane-doe/         fictional person: library, JD, resume, report
@@ -401,11 +442,14 @@ resumes/ applications/     YOUR data: git-ignored, never committed
 
 Your library, applications and tracker hold contact details and job-search notes. They are listed in `.gitignore` and never leave your machine. The only person in this repository is the fictional Jane Doe.
 
+**Two safety nets:**
+- `npm run privacy` fails if any private path is tracked by git, or if any tracked file contains an email, phone number or LinkedIn handle from your own `master_resume.md`.
+- `npm run hooks` makes that check run before every commit, so a mistake is blocked before it can be pushed.
+
 **Local by default.** The ATS check and normal imports use MarkItDown's offline converters. Anything that would send a file to an outside service (OCR or image descriptions with a hosted model, audio transcription, Azure) is refused unless you add `--allow-cloud`. OCR with a local model (`--llm-base-url http://localhost:...`) stays on your machine and needs no flag. Third-party plugins stay off unless you pass `--plugins`.
 
-## Credits
+## Built with
 
-- [varunr89/resume-tailoring-skill](https://github.com/varunr89/resume-tailoring-skill) (MIT): the research, matching and discovery-question skill this workflow builds on.
 - [microsoft/markitdown](https://github.com/microsoft/markitdown) (MIT), with `markitdown-ocr` and `markitdown-mcp`: document-to-Markdown conversion, OCR and the MCP server, used for importing and for the ATS parse check.
 - [docx](https://github.com/dolanmiu/docx) and [Puppeteer](https://github.com/puppeteer/puppeteer): Word and PDF output.
 

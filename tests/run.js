@@ -75,14 +75,26 @@ test("pdf prints, html is cleaned up, and it fits on 2 pages", () => {
 });
 
 console.log("Cross-platform setup");
-test("skill files are real files (not symlinks) and match the vendor copy", () => {
-  const dir = path.join(ROOT, ".claude", "skills", "resume-tailoring");
-  for (const f of ["SKILL.md", "branching-questions.md", "matching-strategies.md", "multi-job-workflow.md", "research-prompts.md", "LICENSE"]) {
+test("the resume-tailor skill is present, original and self-contained", () => {
+  const dir = path.join(ROOT, ".claude", "skills", "resume-tailor");
+  const skill = fs.readFileSync(path.join(dir, "SKILL.md"), "utf8");
+  assert(/^---\nname: resume-tailor\ndescription: .+\n---/m.test(skill), "SKILL.md needs name/description front matter");
+  for (const f of ["matching.md", "discovery.md", "writing.md"]) {
     const p = path.join(dir, f);
-    assert(fs.existsSync(p) && !fs.lstatSync(p).isSymbolicLink(), `${f} must be a real file`);
-    assert(fs.statSync(p).size > 100, `${f} looks empty (a symlink checked out as text?)`);
+    assert(fs.existsSync(p) && !fs.lstatSync(p).isSymbolicLink() && fs.statSync(p).size > 500, `${f} missing or empty`);
+    assert(skill.includes(f), `SKILL.md should point to ${f}`);
   }
-  expectExit(run("node", ["tools/sync_skill.js", "--check"]), 0, "skill copies out of date: run npm run sync-skill");
+  for (const ref of [...skill.matchAll(/`((?:playbooks|templates)\/[\w.-]+)`/g)].map((m) => m[1])) {
+    assert(fs.existsSync(path.join(ROOT, ref)), `SKILL.md points to missing ${ref}`);
+  }
+  for (const f of ["templates/Report.md", "templates/outreach.md", "templates/cover-letter.md", "templates/screening-answers.md"]) {
+    assert(fs.existsSync(path.join(ROOT, f)), `missing ${f}`);
+  }
+});
+test("no dependency on another resume-skill repository", () => {
+  assert(!fs.existsSync(path.join(ROOT, ".gitmodules")) && !fs.existsSync(path.join(ROOT, "vendor")), "submodule should be gone");
+  const files = ["README.md", "CLAUDE.md", "AGENTS.md", "GEMINI.md", "package.json", ".github/workflows/ci.yml"];
+  for (const f of files) assert(!/resume-tailoring-skill|vendor\//.test(fs.readFileSync(path.join(ROOT, f), "utf8")), `${f} still references the old skill`);
 });
 test(".mcp.json launches the server with node (no bash needed)", () => {
   const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, ".mcp.json"), "utf8")).mcpServers.markitdown;
@@ -195,6 +207,113 @@ test("a bank entry can't un-reject a Rejected item", () => {
   const res = truth(tampered((r) => (r.skills[0][1] += ", Cypress")), lib.bank);
   expectExit(res, 1, "truth");
   assert(/REJECTED item: Cypress/.test(res.stdout), "rejected item must still fail");
+});
+
+test("a confirmed NOT held item can't support a claim", () => {
+  const lib = freshLibrary();
+  expectExit(run("node", ["tools/add_experience.js", "--not-held=Webhook testing", `--bank=${lib.bank}`, `--master=${lib.master}`]), 0, "add not-held");
+  const res = run("node", ["tools/truth_check.js", tampered((r) => (r.skills[0][1] += ", Webhook testing")), lib.master, lib.bank]);
+  expectExit(res, 1, "truth");
+  assert(/Webhook/.test(res.stdout), "Webhook must still be unsupported");
+});
+
+console.log("Job descriptions: fetch, new, track");
+const fetchJd = require("../tools/fetch_jd");
+const FX = path.join(ROOT, "tests", "fixtures", "jd");
+const fx = (f) => JSON.parse(fs.readFileSync(path.join(FX, f), "utf8"));
+test("recognises job-board URLs and refuses LinkedIn", () => {
+  const cases = {
+    "https://job-boards.eu.greenhouse.io/exampleco/jobs/123": ["greenhouse", "https://boards-api.greenhouse.io/v1/boards/exampleco/jobs/123"],
+    "https://boards.greenhouse.io/exampleco/jobs/123?gh_src=x": ["greenhouse", "https://boards-api.greenhouse.io/v1/boards/exampleco/jobs/123"],
+    "https://jobs.ashbyhq.com/exampleco/0d1e2f3a-aaaa-bbbb-cccc-1234567890ab": ["ashby", "https://api.ashbyhq.com/posting-api/job-board/exampleco?includeCompensation=true"],
+    "https://jobs.lever.co/exampleco/9f8e7d6c": ["lever", "https://api.lever.co/v0/postings/exampleco/9f8e7d6c"],
+    "https://jobs.eu.lever.co/exampleco/9f8e7d6c": ["lever", "https://api.eu.lever.co/v0/postings/exampleco/9f8e7d6c"],
+    "https://jobs.smartrecruiters.com/ExampleCo/744000111222333-senior-qa-engineer": ["smartrecruiters", "https://api.smartrecruiters.com/v1/companies/ExampleCo/postings/744000111222333"],
+    "https://apply.workable.com/exampleco/j/ABC123DEF/": ["workable", "https://apply.workable.com/api/v2/accounts/exampleco/jobs/ABC123DEF"],
+    "https://careers.example.com/jobs/senior-qa": ["page", undefined],
+  };
+  for (const [url, [kind, api]] of Object.entries(cases)) {
+    const d = fetchJd.detect(url);
+    assert(d.kind === kind && d.api === api, `${url} -> ${JSON.stringify(d)}`);
+  }
+  assert(fetchJd.detect("https://www.linkedin.com/jobs/view/123/").kind === "blocked", "LinkedIn should be blocked");
+  assert(fetchJd.detect("https://ae.linkedin.com/jobs/view/123/").kind === "blocked", "regional LinkedIn should be blocked");
+});
+test("parses each job-board API format into the same fields", () => {
+  const parsed = [
+    fetchJd.fromGreenhouse(fx("greenhouse.json"), { board: "exampleco" }, "u"),
+    fetchJd.fromAshby(fx("ashby.json"), { org: "exampleco", id: "job-1" }, "u"),
+    fetchJd.fromLever(fx("lever.json"), { company: "exampleco" }, "u"),
+    fetchJd.fromSmartRecruiters(fx("smartrecruiters.json"), { company: "ExampleCo" }, "u"),
+    fetchJd.fromWorkable(fx("workable.json"), { account: "exampleco" }, "u"),
+    fetchJd.fromJsonLd(fs.readFileSync(path.join(FX, "jsonld.html"), "utf8"), "u"),
+  ];
+  for (const job of parsed) {
+    assert(job.title === "Senior QA Engineer", `title: ${job.title}`);
+    assert(/Example/i.test(job.company), `company: ${job.company}`);
+    assert(/Playwright/.test(job.description) && !/<\/?[a-z]+>/i.test(job.description), `description must be clean Markdown: ${job.description.slice(0, 120)}`);
+    assert(job.location, "location missing");
+  }
+  assert(/90000/.test(parsed[5].salary), "JSON-LD salary should be read");
+  assert(/^- /m.test(parsed[0].description), "HTML lists should become Markdown lists");
+});
+test("toMarkdown writes the metadata header and flags visa wording", () => {
+  const md = fetchJd.toMarkdown({ title: "QA", company: "Example", location: "Springfield", description: "Visa sponsorship available." }, "https://x", "test", "2026-01-02");
+  assert(md.startsWith("# QA — Example") && /fetched 2026-01-02 via test/.test(md) && /mentioned: see the description/.test(md), md);
+});
+const work = fs.mkdtempSync(path.join(TMP, "work-"));
+const inWork = (script, args) => spawnSync("node", [path.join(ROOT, "tools", script), ...args], { cwd: work, encoding: "utf8" });
+test("npm run new creates the folder, JD stub and a tracker row", () => {
+  const res = inWork("new_application.js", ["Example Retail Group", "Senior QA Engineer (Hybrid)", "--date=2026-11-20"]);
+  expectExit(res, 0, "new");
+  const folder = path.join(work, "applications", "ExampleRetailGroup_Senior-QA-Engineer-Hybrid_2026-11-20");
+  assert(fs.existsSync(path.join(folder, "JD.md")), "JD.md missing");
+  const t = fs.readFileSync(path.join(work, "application-tracker.md"), "utf8");
+  assert(/\| 2026-11-20 \| Example Retail Group \| Senior QA Engineer \(Hybrid\) \|/.test(t), t);
+  expectExit(inWork("new_application.js", ["Example Retail Group", "Senior QA Engineer (Hybrid)", "--date=2026-11-20"]), 0, "again");
+  assert(fs.readFileSync(path.join(work, "application-tracker.md"), "utf8").split("Example Retail Group").length === 2, "must not add a duplicate row");
+});
+test("npm run track updates, lists and refuses ambiguous matches", () => {
+  inWork("track.js", ["add", "--company=Sample Software Co", "--role=QA Engineer", "--date=2026-11-21"]);
+  expectExit(inWork("track.js", ["update", "Example Retail", "--status=Applied (2026-11-22)", "--coverage=~85%"]), 0, "update");
+  const t = fs.readFileSync(path.join(work, "application-tracker.md"), "utf8");
+  assert(/~85% \| applications\/ExampleRetailGroup_[^|]+\| Applied \(2026-11-22\) \|/.test(t), t);
+  const list = inWork("track.js", ["list"]);
+  assert(/2 total: .*1 applied/.test(list.stdout), list.stdout);
+  inWork("track.js", ["add", "--company=Third Example", "--role=SDET", "--status=Resume ready, not applied"]);
+  inWork("track.js", ["add", "--company=Fourth Example", "--role=SDET Lead", "--status=CV sent to recruiter; 3 interview rounds"]);
+  inWork("track.js", ["add", "--company=Fifth Example", "--role=QA Lead", "--status=Interview scheduled (2026-11-25)"]);
+  const summary = inWork("track.js", ["list"]).stdout;
+  assert(/5 total: .*2 applied/.test(summary) && /1 resume ready/.test(summary) && /1 interview/.test(summary), summary);
+  const amb = inWork("track.js", ["update", "QA Engineer", "--status=x"]);
+  expectExit(amb, 1, "ambiguous");
+  assert(/matches 2 rows/.test(amb.stderr), amb.stderr);
+});
+test("privacy check blocks committing personal data", () => {
+  const repo = fs.mkdtempSync(path.join(TMP, "repo-"));
+  const g = (...a) => spawnSync("git", a, { cwd: repo, encoding: "utf8" });
+  g("init", "-q");
+  fs.mkdirSync(path.join(repo, "tools"));
+  fs.copyFileSync(path.join(ROOT, "tools", "privacy_check.js"), path.join(repo, "tools", "privacy_check.js"));
+  fs.mkdirSync(path.join(repo, "resumes"));
+  fs.writeFileSync(path.join(repo, "resumes", "master_resume.md"), "## 1. Contact\n- Email: jane.private@example.org\n- Phone: +00-111-2223333\n");
+  fs.writeFileSync(path.join(repo, "README.md"), "Contact me at jane.private@example.org");
+  g("add", "README.md");
+  const check = () => spawnSync("node", ["tools/privacy_check.js", "--staged"], { cwd: repo, encoding: "utf8" });
+  const bad = check();
+  expectExit(bad, 1, "email in README");
+  assert(/README\.md contains your contact detail/.test(bad.stderr), bad.stderr);
+  fs.writeFileSync(path.join(repo, "README.md"), "Call 00111 222 3333");
+  g("add", "README.md");
+  expectExit(check(), 1, "phone in README");
+  fs.writeFileSync(path.join(repo, "README.md"), "Nothing personal here.");
+  g("add", "README.md");
+  g("add", "-f", "resumes/master_resume.md");
+  const tracked = check();
+  expectExit(tracked, 1, "tracked master resume");
+  assert(/private file is tracked/.test(tracked.stderr), tracked.stderr);
+  g("rm", "-q", "--cached", "resumes/master_resume.md");
+  expectExit(check(), 0, "clean");
 });
 
 console.log("ATS parse check (MarkItDown)");

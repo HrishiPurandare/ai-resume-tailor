@@ -1,0 +1,10 @@
+{
+  "title": "Senior QA Engineer",
+  "location": { "city": "Springfield", "country": "Ireland" },
+  "workplace": "hybrid",
+  "type": "full",
+  "published": "2026-11-06",
+  "description": "<p>Example Health is hiring.</p>",
+  "requirements": "<ul><li>Playwright</li><li>REST API testing</li></ul>",
+  "benefits": "<p>Pension</p>"
+}

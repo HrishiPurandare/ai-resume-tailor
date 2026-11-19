@@ -4,6 +4,7 @@
 // Usage:
 //   npm run add -- --skill="Kubernetes" --where="Example Payments Ltd" --detail="Deployed test environments per microservice"
 //   npm run add -- --metric="35%" --where="Example Payments Ltd" --detail="Reduced flaky tests by 35% after the Playwright migration"
+//   npm run add -- --not-held="Webhook testing" --jd="Acme QA"   (record a confirmed "no", so it's never asked or claimed)
 //   npm run add            (no flags: asks the questions one by one)
 //
 // Options:
@@ -38,6 +39,12 @@ async function askAll() {
 
 (async () => {
   const bank = opt("bank") || "resumes/experience_bank.md";
+  if (opt("not-held")) {
+    const { appendEntries } = require("./experience_bank");
+    appendEntries(bank, [{ label: "Confirmed NOT held", where: opt("not-held"), detail: "Treat as a gap; never claim." }], opt("jd"));
+    console.log(`Recorded in ${bank}: NOT held: ${opt("not-held")}`);
+    return;
+  }
   let entry;
   if (opt("skill") || opt("metric")) {
     entry = { kind: opt("metric") ? "metric" : "skill", value: opt("metric") || opt("skill"), where: opt("where"), detail: opt("detail"), jd: opt("jd") };

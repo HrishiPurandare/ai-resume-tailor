@@ -12,8 +12,12 @@
     "truth": "node tools/truth_check.js",
     "add": "node tools/add_experience.js",
     "setup:py:extras": "node tools/setup_py.js requirements-extras.txt",
-    "sync-skill": "node tools/sync_skill.js",
-    "mcp": "node tools/markitdown_mcp.js"
+    "mcp": "node tools/markitdown_mcp.js",
+    "fetch": "node tools/fetch_jd.js",
+    "new": "node tools/new_application.js",
+    "track": "node tools/track.js",
+    "privacy": "node tools/privacy_check.js",
+    "hooks": "git config core.hooksPath .githooks"
   },
   "license": "MIT",
   "description": "Claude Code workflow that tailors ATS-friendly resumes to a job description without fabricating",

@@ -1,0 +1,16 @@
+{
+  "jobs": [
+    { "id": "other", "title": "Designer", "location": "Remote", "descriptionHtml": "<p>Not this one</p>" },
+    {
+      "id": "job-1",
+      "title": "Senior QA Engineer",
+      "location": "Springfield",
+      "workplaceType": "Hybrid",
+      "employmentType": "FullTime",
+      "publishedAt": "2026-11-03T10:00:00.000+00:00",
+      "jobUrl": "https://jobs.ashbyhq.com/exampleco/job-1",
+      "compensation": { "compensationTierSummary": "€70K – €85K" },
+      "descriptionHtml": "<h3><strong>What you'll do</strong></h3><p>Grow our <b>Playwright</b> framework.</p>"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "Senior QA Engineer",
+  "company": { "name": "Example Robotics" },
+  "location": { "city": "Springfield", "country": "nl", "remote": false },
+  "releasedDate": "2026-11-05T08:00:00.000Z",
+  "typeOfEmployment": { "label": "Full-time" },
+  "postingUrl": "https://jobs.smartrecruiters.com/ExampleCo/744000111222333",
+  "jobAd": {
+    "sections": {
+      "companyDescription": { "title": "Company", "text": "<p>We build example robots.</p>" },
+      "jobDescription": { "title": "Job Description", "text": "<p>Automate tests with Playwright &amp; Python.</p>" },
+      "qualifications": { "title": "Qualifications", "text": "<ul><li>ISTQB</li></ul>" }
+    }
+  }
+}

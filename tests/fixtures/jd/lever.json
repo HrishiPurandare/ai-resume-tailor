@@ -1,0 +1,10 @@
+{
+  "text": "Senior QA Engineer",
+  "categories": { "location": "Springfield", "commitment": "Full-time", "team": "Engineering" },
+  "workplaceType": "hybrid",
+  "createdAt": 1762770000000,
+  "hostedUrl": "https://jobs.lever.co/exampleco/9f8e7d6c",
+  "description": "<div>Join Example Payments as a QA lead.</div>",
+  "lists": [{ "text": "Requirements", "content": "<li>Playwright and CI/CD</li><li>5+ years in QA</li>" }],
+  "additional": "<div>Visa sponsorship is available.</div>"
+}
