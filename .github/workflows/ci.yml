@@ -28,12 +28,12 @@ jobs:
       - name: Install Node dependencies (docx, Puppeteer + Chrome)
         run: npm ci
 
-      - name: Install MarkItDown
+      - name: Install MarkItDown with every extra (OCR plugin, MCP server, all formats)
         run: |
           python -m venv .venv
-          .venv/bin/pip install -r requirements.txt
+          .venv/bin/pip install -r requirements-extras.txt
 
-      - name: Run tests (build, truth check, ATS parse check, negative tests)
+      - name: Run tests (build, truth check, ATS check, every import format, MCP server)
         run: npm test
 
       - name: Upload example resume

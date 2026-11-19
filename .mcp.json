@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "markitdown": {
+      "command": "bash",
+      "args": ["tools/markitdown_mcp.sh"]
+    }
+  }
+}

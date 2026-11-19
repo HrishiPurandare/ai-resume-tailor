@@ -1,1 +1,3 @@
-markitdown[pdf,docx]==0.1.9
+# Local, offline converters: PDF, Word, PowerPoint, Excel (new and old), Outlook .msg,
+# plus the built-in HTML, text, CSV, JSON, XML, EPUB, ZIP and image-metadata support.
+markitdown[pdf,docx,pptx,xlsx,xls,outlook]==0.1.9

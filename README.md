@@ -105,7 +105,8 @@ Requirements: Node.js 20+, Python 3.10–3.14, and [Claude Code](https://docs.an
 git clone --recurse-submodules https://github.com/HrishiPurandare/ai-resume-tailor.git
 cd ai-resume-tailor
 npm install            # docx + Puppeteer (downloads a headless Chrome)
-npm run setup:py       # creates .venv with MarkItDown
+npm run setup:py       # creates .venv with MarkItDown (all local formats)
+npm run setup:py:extras   # optional: + OCR, MCP server, YouTube, audio, Azure (see "Import anything")
 npm test               # builds the example and runs every check
 ```
 
@@ -124,6 +125,56 @@ npm run import -- old-resumes/*.pdf old-resumes/*.docx -o resumes/imported
 ```
 
 Open the folder in Claude Code and paste a job description or URL. `CLAUDE.md` tells Claude the workflow and the rules.
+
+## Import anything (MarkItDown)
+
+`npm run import` wraps Microsoft's [MarkItDown](https://github.com/microsoft/markitdown) and exposes everything it can do. Use it to turn an old resume library, a job description or any supporting document into Markdown the AI can read.
+
+| Input | Install | Stays on your computer? |
+|---|---|---|
+| PDF, Word (DOCX), PowerPoint (PPTX), Excel (XLSX, XLS), Outlook (MSG) | `setup:py` | Yes |
+| HTML, TXT, Markdown, CSV, JSON, XML, EPUB, ZIP, Jupyter, RSS | `setup:py` | Yes |
+| Web pages (job postings) | `setup:py` | Fetches the page you name |
+| Images (JPG, PNG...) | `setup:py` | Yes (metadata only; text needs `--ocr`) |
+| Scanned PDFs, text inside images (`--ocr`) | `setup:py:extras` | **Yes with a local model** (Ollama, LM Studio); otherwise sent to your LLM provider |
+| AI image descriptions (`--describe-images`) | `setup:py:extras` | Same as above |
+| YouTube videos (transcript of an interview tip or company talk) | `setup:py:extras` | Fetches the transcript you name |
+| Audio (MP3, WAV, M4A) | `setup:py:extras` | **No**: uses an online speech service, so needs `--allow-cloud` |
+| Azure Document Intelligence / Content Understanding | `setup:py:extras` + Azure account | **No**: needs `--allow-cloud` |
+
+Run `npm run import -- --list-formats` to see what's installed.
+
+**Examples:**
+
+```bash
+# A whole folder of old resumes (subfolders too), keeping the folder structure
+npm run import -- old-resumes --recursive -o resumes/imported
+
+# A job description from a web page, a PDF, or a slide deck
+npm run import -- "https://example.com/careers/senior-qa" -o applications/Acme_QA_2026-11-20
+npm run import -- jd.pdf skills-matrix.xlsx team-overview.pptx -o applications/Acme_QA_2026-11-20
+
+# A scanned resume, read by a vision model running locally with Ollama (nothing leaves your machine)
+ollama pull llava
+npm run import -- scanned_resume.pdf --ocr --llm-base-url http://localhost:11434/v1 --llm-model llava
+
+# The same with OpenAI (sends the pages to OpenAI, so it needs --allow-cloud)
+OPENAI_API_KEY=sk-... npm run import -- scanned_resume.pdf --ocr --allow-cloud
+
+# Print to the terminal, or pipe a file in
+npm run import -- jd.docx --stdout
+cat jd.pdf | npm run import -- - --stdin-ext .pdf --stdout
+```
+
+Other options: `--force` to overwrite, `--llm-prompt` for a custom OCR prompt, `--plugins` for third-party MarkItDown plugins, `--keep-data-uris` to keep embedded images, and `--docintel-endpoint` / `--cu-endpoint` for Azure. `npm run import -- --help` lists them all.
+
+Converted files are reference material. Confirm the facts before they go into `master_resume.md`.
+
+### Let the AI convert files itself (MCP server)
+
+With the extras installed, the repo's `.mcp.json` registers MarkItDown's MCP server. Claude Code asks you to approve it the first time you open the folder, and after that the agent can call `convert_to_markdown` on any file, web page or `data:` URI by itself. For example: "read the JD in ~/Downloads/jd.pdf".
+
+Other MCP-capable tools (Cursor, Cline, Gemini CLI, Claude Desktop) can use the same server: point them at `bash tools/markitdown_mcp.sh`. The server runs locally over stdio and can read whatever files your user account can, so only use it with agents you trust.
 
 ## Plans and free options
 
@@ -234,7 +285,8 @@ This works the same way with ChatGPT, Gemini or any other chat assistant.
 | `npm run truth -- <resume.json> <library.md...> [--interactive] [--warn] [--allow=Word]` | Truth check against the library (see [modes](#when-the-truth-check-fails-add-what-youve-really-done)) |
 | `npm run add -- --skill=X --where=Employer --detail="..."` | Records a skill, tool, certification or `--metric` in your experience bank |
 | `npm run ats -- <resume.json> <base> [--keywords JD.md]` | ATS parse check on the DOCX and PDF |
-| `npm run import -- <files or URLs> -o <dir>` | Converts PDF, DOCX, PPTX, XLSX, HTML or a URL to Markdown |
+| `npm run import -- <files, folders, URLs or -> [-o dir] [--recursive] [--stdout] [--ocr] ...` | Converts almost any document to Markdown (see [Import anything](#import-anything-markitdown)) |
+| `npm run setup:py` / `npm run setup:py:extras` | Python tools: local formats only / everything (OCR, MCP, YouTube, audio, Azure) |
 | `npm test` | Full suite, including negative tests |
 
 ## Repository layout
@@ -245,20 +297,23 @@ AGENTS.md                  the same, for Codex, Copilot, Cursor, Aider and other
 GEMINI.md                  pointer for Gemini CLI
 .claude/skills/            resume-tailoring skill (symlinks into vendor/)
 vendor/resume-tailoring-skill/   upstream skill (git submodule, MIT)
-tools/                     build, PDF, truth check, ATS check, import
-tests/run.js               test suite
+tools/                     build, PDF, truth check, ATS check, import, add experience, MCP launcher
+.mcp.json                  registers the MarkItDown MCP server for Claude Code
+tests/                     test suite, fixture generator, MCP smoke test
 examples/jane-doe/         fictional person: library, JD, resume, report
 resumes/ applications/     YOUR data: git-ignored, never committed
 ```
 
 ## Privacy
 
-Your library, applications and tracker hold contact details and job-search notes. They are listed in `.gitignore` and never leave your machine. The only person in this repository is the fictional Jane Doe. MarkItDown is used with its offline converters only: no plugins, no cloud services.
+Your library, applications and tracker hold contact details and job-search notes. They are listed in `.gitignore` and never leave your machine. The only person in this repository is the fictional Jane Doe.
+
+**Local by default.** The ATS check and normal imports use MarkItDown's offline converters. Anything that would send a file to an outside service (OCR or image descriptions with a hosted model, audio transcription, Azure) is refused unless you add `--allow-cloud`. OCR with a local model (`--llm-base-url http://localhost:...`) stays on your machine and needs no flag. Third-party plugins stay off unless you pass `--plugins`.
 
 ## Credits
 
 - [varunr89/resume-tailoring-skill](https://github.com/varunr89/resume-tailoring-skill) (MIT): the research, matching and discovery-question skill this workflow builds on.
-- [microsoft/markitdown](https://github.com/microsoft/markitdown) (MIT): document-to-Markdown conversion, used for importing and for the ATS parse check.
+- [microsoft/markitdown](https://github.com/microsoft/markitdown) (MIT), with `markitdown-ocr` and `markitdown-mcp`: document-to-Markdown conversion, OCR and the MCP server, used for importing and for the ATS parse check.
 - [docx](https://github.com/dolanmiu/docx) and [Puppeteer](https://github.com/puppeteer/puppeteer): Word and PDF output.
 
 ## License

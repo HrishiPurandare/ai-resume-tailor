@@ -79,7 +79,7 @@ def main() -> int:
             print(f"[{ext.upper()}] missing: {f}")
             ok = False
             continue
-        text = norm(md.convert(str(f)).markdown)
+        text = norm(md.convert_local(str(f)).markdown)
         missing = [(kind, val) for kind, val in items if norm(val) not in text]
         score = 100 * (len(items) - len(missing)) / len(items)
         status = "PASS" if score >= args.min else "FAIL"

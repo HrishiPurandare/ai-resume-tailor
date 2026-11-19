@@ -1,0 +1,6 @@
+# Optional power features. Several of these send data to outside services; see README "Privacy".
+-r requirements.txt
+markitdown[all]==0.1.9          # + audio transcription, YouTube transcripts, Azure Document Intelligence / Content Understanding
+markitdown-ocr==0.1.2           # OCR for scanned PDFs and images inside PDF/DOCX/PPTX/XLSX (via an OpenAI-compatible vision model)
+markitdown-mcp==0.0.1a8         # MCP server so Claude Code or other agents can call MarkItDown as a tool
+openai>=2,<4                    # client for OCR and image descriptions (works with OpenAI, Azure OpenAI, Ollama, LM Studio...)

@@ -198,6 +198,81 @@ if (!HAS_PY) {
       assert(text.includes("JANE DOE") && text.includes("Example Payments Ltd"), `${f} is missing content`);
     }
   });
+
+  console.log("Importing every format (MarkItDown)");
+  const FIX = path.join(TMP, "fixtures");
+  const fixturesOk = run(PY, ["tests/make_fixtures.py", FIX]).status === 0;
+  const imp = (...a) => run(PY, ["tools/to_markdown.py", ...a]);
+  const readMd = (dir, name) => fs.readFileSync(path.join(dir, name), "utf8");
+  test("fixtures can be generated (python-pptx, openpyxl installed)", () => assert(fixturesOk, "make_fixtures.py failed"));
+  if (fixturesOk) {
+    test("a folder converts HTML, TXT, JSON, CSV, ZIP, PPTX and XLSX", () => {
+      const out = path.join(TMP, "all");
+      const res = imp(FIX, "-o", out);
+      expectExit(res, 0, `import folder\n${res.stderr}`);
+      const expect = {
+        "job.md": "FIXTURE HTML", "notes.md": "FIXTURE TXT", "data.md": "FIXTURE JSON", "skills.md": "FIXTURE CSV",
+        "bundle.md": "FIXTURE ZIP", "deck.md": "FIXTURE PPTX", "matrix.md": "FIXTURE XLSX",
+      };
+      for (const [file, phrase] of Object.entries(expect)) assert(readMd(out, file).includes(phrase), `${file} should contain ${phrase}`);
+      assert(!fs.existsSync(path.join(out, "nested")), "subfolders need --recursive");
+    });
+    test("--recursive keeps the folder structure", () => {
+      const out = path.join(TMP, "rec");
+      expectExit(imp(FIX, "--recursive", "-o", out), 0, "recursive");
+      assert(readMd(path.join(out, "nested"), "deep.md").includes("FIXTURE NESTED"), "nested/deep.md missing");
+    });
+    test("--stdout and stdin (-) work", () => {
+      const res = imp(path.join(FIX, "deck.pptx"), "--stdout");
+      expectExit(res, 0, "stdout");
+      assert(res.stdout.includes("FIXTURE PPTX"), "stdout should carry the markdown");
+      const piped = spawnSync(PY, ["tools/to_markdown.py", "-", "--stdin-ext", ".html", "--stdout"], {
+        cwd: ROOT, encoding: "utf8", input: fs.readFileSync(path.join(FIX, "job.html"), "utf8"),
+      });
+      expectExit(piped, 0, "stdin");
+      assert(piped.stdout.includes("FIXTURE HTML"), "stdin conversion failed");
+    });
+    test("audio is skipped unless --allow-cloud", () => {
+      const res = imp(path.join(FIX, "talk.mp3"), "-o", path.join(TMP, "audio"));
+      assert(/online speech service/.test(res.stderr), "should explain why audio was skipped");
+      assert(!fs.existsSync(path.join(TMP, "audio", "talk.md")), "audio must not be converted");
+    });
+    test("cloud OCR and Azure are refused without --allow-cloud", () => {
+      const env = { ...process.env, OPENAI_API_KEY: "sk-test-not-used", OPENAI_BASE_URL: "" };
+      for (const flags of [["--ocr"], ["--describe-images"], ["--docintel-endpoint", "https://example.cognitiveservices.azure.com/"]]) {
+        const res = spawnSync(PY, ["tools/to_markdown.py", path.join(FIX, "job.html"), "--stdout", ...flags], { cwd: ROOT, encoding: "utf8", env });
+        expectExit(res, 2, flags[0]);
+        assert(/refused/.test(res.stderr), `${flags[0]} should be refused`);
+      }
+    });
+    test("existing files are not overwritten without --force", () => {
+      const out = path.join(TMP, "force");
+      imp(path.join(FIX, "notes.txt"), "-o", out);
+      fs.writeFileSync(path.join(out, "notes.md"), "KEEP ME");
+      imp(path.join(FIX, "notes.txt"), "-o", out);
+      assert(readMd(out, "notes.md") === "KEEP ME", "file was overwritten without --force");
+      imp(path.join(FIX, "notes.txt"), "-o", out, "--force");
+      assert(readMd(out, "notes.md").includes("FIXTURE TXT"), "--force should overwrite");
+    });
+  }
+  test("--list-formats reports installed features", () => {
+    const res = imp("--list-formats");
+    expectExit(res, 0, "list");
+    assert(/yes\s+PDF/.test(res.stdout) && /PowerPoint/.test(res.stdout), res.stdout);
+  });
+
+  console.log("MCP server (markitdown-mcp)");
+  if (!fs.existsSync(path.join(ROOT, ".venv", "bin", "markitdown-mcp"))) {
+    console.log("  skip  not installed; run `npm run setup:py:extras` to enable");
+  } else {
+    test("starts from .mcp.json, offers convert_to_markdown, converts a file", () => {
+      const res = spawnSync(PY, ["tests/mcp_smoke.py", path.join(EX, "Jane_Doe_Resume.docx"), "Example Payments Ltd"], {
+        cwd: ROOT, encoding: "utf8", timeout: 120000,
+      });
+      expectExit(res, 0, `mcp\n${res.stderr.slice(-500)}`);
+      assert(/MCP PASS/.test(res.stdout), res.stdout);
+    });
+  }
 }
 
 fs.rmSync(TMP, { recursive: true, force: true });

@@ -20,12 +20,14 @@ tools/to_markdown.py       ← PDF/DOCX/HTML/URL → .md (MarkItDown)
 tools/ats_check.py         ← reads the DOCX/PDF back like an ATS and checks nothing was lost
 ```
 
-Python tools need a one-time `npm run setup:py` (Python 3.10–3.14; creates `.venv/` with MarkItDown).
+Python tools need a one-time `npm run setup:py` (Python 3.10–3.14; creates `.venv/` with MarkItDown and all local formats). `npm run setup:py:extras` adds OCR, the MCP server, YouTube, audio and Azure.
 
 ## Importing an existing library or a JD file
 
-- **Resumes:** if `resumes/` holds PDFs or Word files, convert them first with `npm run import -- resumes/*.pdf resumes/*.docx -o resumes/imported`, then build `master_resume.md` from the converted text. Converted files are reference only: confirm facts with the user before they enter the master resume.
-- **JD as a file or URL:** `npm run import -- <file-or-url> -o applications/<folder>` and save the result as `JD.md`.
+- **Resumes:** if `resumes/` holds PDFs, Word, PowerPoint or other files, convert them first with `npm run import -- resumes --recursive -o resumes/imported`, then build `master_resume.md` from the converted text. Converted files are reference only: confirm facts with the user before they enter the master resume.
+- **JD as a file, deck, spreadsheet or URL:** `npm run import -- <file-or-url> -o applications/<folder>`, then save the result as `JD.md`. If the `markitdown` MCP tool (`convert_to_markdown`) is available, you can use it instead.
+- **Scanned PDFs or images:** use `--ocr`. Prefer a local model (`--llm-base-url http://localhost:11434/v1 --llm-model llava`). Only add `--allow-cloud` (sends the file to the LLM provider, Azure or a speech service) when the user has agreed to it in chat.
+- Run `npm run import -- --list-formats` to see what's installed.
 
 ## When a JD arrives
 
